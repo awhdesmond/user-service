@@ -1,0 +1,77 @@
+openapi: 3.0.3
+info:
+  title: User Service
+  description: |-
+    This service provides a HTTP-based API for managing users' date of birth.
+
+    Some useful links:
+    - [Github repository](https://github.com/awhdesmond/user-service)
+    - [API definition](https://github.com/awhdesmond/user-service/blob/master/src/main/docs/swagger.yaml)
+  version: 0.1.0
+tags:
+  - name: users
+    description: Operations about your users
+paths:
+  /hello/{username}:
+    put:
+      tags:
+        - users
+      summary: Upsert a user with the user's birthday
+      description: Upsert a user with the user's birthday
+      operationId: upsertUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Upsert a user with the user's date of birth
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dateOfBirth:
+                  type: string
+                  example: 2020-01-02
+        required: true
+      responses:
+        '204':
+          description: Successful operation
+        '400':
+          description: Invalid username or date of birth supplied
+    get:
+      tags:
+        - users
+      summary: Retrieve a user by username
+      description: Returns a customized birthday message for the user
+      operationId: getUser
+      parameters:
+        - name: username
+          in: path
+          description: Username of the user
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BirthdayMessage'
+        '400':
+          description: Invalid username supplied
+        '404':
+          description: User not found
+
+components:
+  schemas:
+    BirthdayMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Hello, user! Happy birthday!

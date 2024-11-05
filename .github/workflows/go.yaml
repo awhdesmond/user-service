@@ -1,0 +1,71 @@
+name: Go CI
+
+on:
+  push:
+    branches:
+    - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # https://docs.github.com/en/actions/using-containerized-services/about-service-containers
+    services:
+      redis:
+        image: redis:7.0
+        ports:
+        - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:16.2
+        ports:
+        - 5432:5432
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Go 1.20
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.20"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.58
+      - name: Run Flyway Migrate
+        uses: docker://flyway/flyway:10
+        with:
+          args: -url="jdbc:postgresql://postgres:5432/postgres" -user="postgres" -password="postgres" -locations="filesystem:db/migrations/" -validateMigrationNaming=true migrate
+      - name: Run Unit tests
+        run: |
+          go install github.com/jstemmer/go-junit-report/v2@latest
+          go test -short -timeout 120s -race -count 1 -v ./... 2>&1 | go-junit-report -set-exit-code -iocopy -out "${{ github.workspace }}/report.xml"
+        env:
+          USERS_SVC_POSTGRES_HOST: postgres
+          USERS_SVC_POSTGRES_PORT: "5432"
+          USERS_SVC_POSTGRES_USERNAME: postgres
+          USERS_SVC_POSTGRES_PASSWORD: postgres
+          USERS_SVC_POSTGRES_DATABASE: postgres
+          USERS_SVC_POSTGRES_TEST_DATABASE: postgres
+          USERS_SVC_REDIS_URL: redis://redis:6379/10
+      - name: Test Summary
+        uses: test-summary/action@v2
+        with:
+          paths: |
+            ${{ github.workspace }}/report.xml

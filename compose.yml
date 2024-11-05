@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  redis:
+    image: redis:7.0
+    ports:
+      - 6379:6379
+    volumes:
+      - ./conf/redis.conf:/etc/redis/redis.conf
+  postgres:
+    image: postgres:16.2
+    ports:
+      - 5432:5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=postgres
+  swagger-ui:
+    image: swaggerapi/swagger-ui:latest
+    ports:
+      - 3000:8080
+    volumes:
+      - ./docs/swagger.yaml:/user-svc/swagger.yaml
+    environment:
+      - SWAGGER_JSON=/user-svc/swagger.yaml
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+      - 9090:9090
+    command: ./server
+    environment:
+      - USERS_SVC_HOST=0.0.0.0
+      - USERS_SVC_PORT=8080
+      - USERS_SVC_METRICS_PORT=9090
+      - USERS_SVC_LOG_LEVEL-debug
+      - USERS_SVC_CORS_ORIGIN=*
+      - USERS_SVC_POSTGRES_HOST=postgres
+      - USERS_SVC_POSTGRES_PORT=5432
+      - USERS_SVC_POSTGRES_USERNAME=postgres
+      - USERS_SVC_POSTGRES_PASSWORD=postgres
+      - USERS_SVC_POSTGRES_DATABASE=postgres
+      - USERS_SVC_REDIS_URI=redis://redis:6379/0
+      - USERS_SVC_REDIS_PASSWORD=password
+    restart: always
+    depends_on:
+      - postgres
+      - redis
+volumes:
+  postgres-data:
